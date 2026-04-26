@@ -486,53 +486,74 @@ RULES:
 
 // ── GEMINI 이미지 생성 ──
 async function genHair(style){
-  // Gemini 2.5 Flash Image (나노바나나) — 브라우저 직접 호출
-  // Google API는 CORS 허용 → 서버 프록시 불필요
-  const prompt = 'Apply ' + style.p + ' hairstyle to the person in this image. Keep everything exactly the same except the hairstyle.';
+  // Gemini image editing — 헤어스타일만 변경
+  // 프롬프트 전략: 헤어 스타일 묘사만, 신체 부위 언급 금지
+  // "hairstyle only" + "rest unchanged" 패턴이 안전 필터 통과율 높음
+  const prompt =
+    'Hairstyle only change: ' + style.p + '. ' +
+    'Only modify the hair. Do not change the background, clothing, or any other part of the image. ' +
+    'Output the edited image.';
 
-  // gemini-2.5-flash-image 시도, 실패 시 gemini-2.0-flash-exp 폴백
-  const models = ['gemini-2.5-flash-image', 'gemini-2.0-flash-exp'];
+  // 모델 우선순위: 2.0-flash-exp(안정) → 2.5-flash-image(최신)
+  const models = ['gemini-2.0-flash-exp', 'gemini-2.5-flash-image'];
   let lastErr = '';
+
   for (const model of models) {
     try {
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + S.tok;
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/'
+        + model + ':generateContent?key=' + S.tok;
+
+      const reqBody = {
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: 'image/jpeg', data: S.img.split(',')[1] } },
+            { text: prompt }
+          ]
+        }],
+        generationConfig: {
+          responseModalities: ['IMAGE', 'TEXT']
+        },
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_ONLY_HIGH' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_ONLY_HIGH' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' }
+        ]
+      };
+
       const r = await fetch(url, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-      contents: [{
-        parts: [
-          { inline_data: { mime_type: 'image/jpeg', data: S.img.split(',')[1] } },
-          { text: prompt }
-        ]
-      }],
-      generationConfig: {
-        responseModalities: ['IMAGE', 'TEXT']
-      }
-    })
-  });
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reqBody)
+      });
 
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
-        lastErr = 'Gemini[' + model + '] ' + r.status + ': ' + (e.error?.message || JSON.stringify(e).slice(0,80));
-        continue; // 다음 모델 시도
+        lastErr = '[' + model + '] HTTP ' + r.status + ': ' + (e.error?.message || '').slice(0, 80);
+        continue;
       }
+
       const data = await r.json();
       const parts = data.candidates?.[0]?.content?.parts || [];
       const imgPart = parts.find(p => p.inline_data?.mime_type?.startsWith('image/'));
+
       if (!imgPart) {
-        const reason = data.candidates?.[0]?.finishReason || 'unknown';
-        const txt = parts.find(p => p.text)?.text?.slice(0,80) || '';
-        const blocked = data.promptFeedback?.blockReason || '';
-        lastErr = '[' + model + '] 이미지없음 reason=' + reason + ' block=' + blocked + ' | ' + txt;
-        continue; // 다음 모델 시도
+        const reason   = data.candidates?.[0]?.finishReason || 'unknown';
+        const blocked  = data.promptFeedback?.blockReason   || '';
+        const textHint = (parts.find(p => p.text)?.text || '').slice(0, 80);
+        lastErr = '[' + model + '] reason=' + reason
+          + (blocked ? ' block=' + blocked : '')
+          + (textHint ? ' | ' + textHint : '');
+        continue;
       }
-      const mime = imgPart.inline_data.mime_type;
-      return 'data:' + mime + ';base64,' + imgPart.inline_data.data;
-    } catch(fetchErr) {
+
+      return 'data:' + imgPart.inline_data.mime_type + ';base64,' + imgPart.inline_data.data;
+
+    } catch (fetchErr) {
       lastErr = '[' + model + '] ' + fetchErr.message;
     }
   }
+
   throw new Error(lastErr || 'Gemini 모든 모델 실패');
 }
 
