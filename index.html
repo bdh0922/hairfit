@@ -543,7 +543,7 @@ async function startFlow(){
   for(let i=0;i<5;i++){
     document.getElementById('th'+i).className='thumb spin';
     document.getElementById('ti'+i).src='';
-    document.getElementById('tl'+i).textContent='—';
+    const tl=document.getElementById('tl'+i); if(tl) tl.textContent='—';
   }
   step(1,'');step(2,'');step(3,'');pct(0);
   let successCount=0;
@@ -569,8 +569,8 @@ async function startFlow(){
     for(let i=0;i<maxItems;i++){
       if(S.aborted)break;
       const s=selected[i];
-      document.getElementById('st3-t').textContent=`이미지 합성 (${i+1}/5)`;
-      document.getElementById('tl'+i).textContent=s.name;
+      const st3t=document.getElementById('st3-t'); if(st3t) st3t.textContent=`이미지 합성 (${i+1}/5)`;
+      const tlEl=document.getElementById('tl'+i); if(tlEl) tlEl.textContent=s.name;
       try{
         const url=await genHair(s);
         const safe=safeUrl(url);
@@ -582,9 +582,10 @@ async function startFlow(){
       }catch(imgErr){
         if(S.aborted)break;
         document.getElementById('th'+i).className='thumb fail';
-        document.getElementById('tl'+i).textContent='오류';
+        const tlErrEl=document.getElementById('tl'+i); if(tlErrEl) tlErrEl.textContent='오류';
         // 에러 내용을 화면에 표시 (디버깅용)
-        document.getElementById('st3-s').textContent='오류: '+imgErr.message.slice(0,80);
+        const st3s=document.getElementById('st3-s'); if(st3s) st3s.textContent='오류: '+imgErr.message.slice(0,80);
+        showErr('err-load', imgErr.message);
         S.results.push({...s,url:'',failed:true});
       }
       pct(20+(i+1)*16);
