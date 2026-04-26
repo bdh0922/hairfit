@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HAIRFIT — AI 헤어 추천</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#c9a86c;--gold-dim:rgba(201,168,108,.12);--gold-b:rgba(201,168,108,.35);
+  --bg:#0b0b0b;--bg2:#131313;--bg3:#1a1a1a;--bg4:#222;
+  --text:#ede9e2;--muted:#6a6560;--dim:#3e3a36;
+  --bdr:rgba(255,255,255,.07);--bdr2:rgba(255,255,255,.13);
+  --red-bg:rgba(200,60,60,.12);--red-b:rgba(200,60,60,.4);--red-t:#f99;
+  --warn-bg:rgba(200,140,40,.08);--warn-b:rgba(200,140,40,.3);--warn-t:#e8b46a;
+  --blue-bg:rgba(80,130,200,.07);--blue-b:rgba(80,130,200,.22);--blue-t:#7aabdf;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
+  min-height:100vh;display:flex;justify-content:center;align-items:flex-start;
+  padding:2.5rem 1.25rem 5rem}
+@keyframes up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* SCREENS */
+.screen{display:none;width:100%;max-width:440px;animation:up .3s ease}
+.screen.active{display:block}
+#s-results{max-width:720px}
+
+/* BRAND */
+.logo{font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:600;
+  color:var(--gold);letter-spacing:.2em;text-align:center;margin-bottom:.15rem}
+.sub{text-align:center;font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:2rem}
+
+/* FORM */
+.fw{margin-bottom:.85rem}
+.fl{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.35rem}
+.fl-label{font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.fl-link{font-size:.68rem;color:var(--gold);text-decoration:none;opacity:.7}
+.fl-link:hover{opacity:1}
+.fi{width:100%;background:var(--bg2);border:1px solid var(--bdr);color:var(--text);
+  padding:.68rem 1rem;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;
+  outline:none;transition:border-color .2s}
+.fi:focus{border-color:var(--gold-b)}
+.fi::placeholder{color:var(--dim)}
+.fi.invalid{border-color:var(--red-b)}
+
+/* BUTTONS */
+.btn{width:100%;padding:.82rem;border-radius:8px;font-family:'DM Sans',sans-serif;
+  font-size:.86rem;font-weight:500;letter-spacing:.04em;cursor:pointer;
+  transition:all .18s;border:none;margin-top:.9rem;display:block;text-align:center}
+.btn-gold{background:var(--gold);color:#0a0a0a}
+.btn-gold:hover{filter:brightness(1.08)}
+.btn-gold:disabled{background:var(--bg3);color:var(--muted);cursor:not-allowed;filter:none}
+.btn-outline{background:none;border:1px solid var(--bdr);color:var(--muted)}
+.btn-outline:hover{border-color:var(--gold-b);color:var(--gold)}
+.btn-danger{background:none;border:1px solid var(--red-b);color:var(--red-t)}
+.btn-danger:hover{background:var(--red-bg)}
+
+/* NOTICES */
+.notice{border-radius:7px;padding:.72rem .9rem;font-size:.74rem;line-height:1.6;margin:.65rem 0}
+.n-blue{background:var(--blue-bg);border:1px solid var(--blue-b);color:var(--blue-t)}
+.n-warn{background:var(--warn-bg);border:1px solid var(--warn-b);color:var(--warn-t)}
+.n-err{background:var(--red-bg);border:1px solid var(--red-b);color:var(--red-t);display:none}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;
+  display:none;align-items:center;justify-content:center;padding:1.5rem}
+.overlay.open{display:flex}
+.mbox{background:var(--bg2);border:1px solid var(--bdr2);border-radius:14px;
+  padding:1.75rem;width:100%;max-width:360px;animation:up .22s ease}
+.mtitle{font-family:'Cormorant Garamond',serif;font-size:1.15rem;font-weight:600;margin-bottom:.35rem}
+.mamt{font-size:1.4rem;font-weight:300;color:var(--gold);margin-bottom:.15rem;font-family:'Cormorant Garamond',serif}
+.mamt-sub{font-size:.72rem;color:var(--muted);margin-bottom:1.1rem}
+.mprivacy{font-size:.72rem;color:var(--muted);line-height:1.55;padding:.65rem .8rem;
+  background:var(--bg3);border-radius:7px;margin-bottom:1.1rem}
+.mbtns{display:flex;gap:.5rem}
+.mbtns .btn{margin-top:0;flex:1}
+
+/* GENDER */
+.gtog{display:flex;gap:.5rem;margin-bottom:1.25rem}
+.gbtn{flex:1;padding:.65rem .5rem;background:var(--bg2);border:1px solid var(--bdr);
+  color:var(--muted);border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;
+  font-size:.84rem;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.4rem}
+.gbtn.on{background:var(--gold-dim);border-color:var(--gold-b);color:var(--gold)}
+
+/* UPLOAD */
+.drop{border:1.5px dashed var(--bdr2);border-radius:12px;text-align:center;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;background:var(--bg2);
+  min-height:200px;display:flex;align-items:center;justify-content:center}
+.drop:hover,.drop.drag{border-color:var(--gold-b);background:var(--gold-dim)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-ph{padding:2rem}
+.drop-ico{font-size:2rem;margin-bottom:.6rem;opacity:.28}
+.drop-hint{font-size:.84rem;margin-bottom:.25rem}
+.drop-sub{font-size:.7rem;color:var(--muted)}
+#preview{width:100%;max-height:300px;object-fit:cover;border-radius:10px;display:none}
+.cost-row{display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg3);border-radius:7px;padding:.6rem .9rem;margin-top:.8rem;font-size:.76rem}
+.cost-row span:first-child{color:var(--muted)}
+.cost-row span:last-child{color:var(--gold);font-weight:500}
+
+/* LOADING */
+.load-header{text-align:center;margin-bottom:1.75rem}
+.load-title{font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--text);font-weight:400;margin-bottom:.3rem}
+.load-est{font-size:.72rem;color:var(--muted);letter-spacing:.04em}
+.pbar-wrap{height:2px;background:var(--bg3);border-radius:2px;margin:1.25rem 0;overflow:hidden}
+.pbar-fill{height:100%;background:var(--gold);border-radius:2px;width:0%;transition:width .5s ease}
+.steps{margin:.75rem 0 1.25rem}
+.step{display:flex;align-items:flex-start;gap:.8rem;padding:.5rem 0;opacity:.22;transition:opacity .25s}
+.step.on{opacity:1}.step.ok{opacity:.45}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--dim);flex-shrink:0;margin-top:.42rem;transition:background .25s}
+.step.on .dot{background:var(--gold);animation:pulse 1.5s infinite}
+.step.ok .dot{background:#5aaa80}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.step-t{font-size:.83rem;font-weight:500}
+.step-s{font-size:.7rem;color:var(--muted);margin-top:.1rem}
+
+/* THUMBNAILS */
+.thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.tw{display:flex;flex-direction:column;gap:4px}
+.thumb{aspect-ratio:1;border-radius:6px;background:var(--bg3);overflow:hidden;position:relative}
+.thumb img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s}
+.thumb.done img{opacity:1}
+.thumb.spin::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.035),transparent);animation:shim 1.4s infinite}
+.thumb.fail::before{content:'✕';position:absolute;inset:0;display:flex;
+  align-items:center;justify-content:center;color:var(--red-t);font-size:.7rem}
+@keyframes shim{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.tlbl{font-size:.58rem;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ══════════════════════════════
+   RESULTS PAGE — 한 화면 레이아웃
+   ══════════════════════════════ */
+
+/* 얼굴 분석 카드 */
+.analysis-card{
+  background:var(--bg2);border:1px solid var(--gold-b);border-radius:12px;
+  padding:1rem 1.1rem;margin-bottom:1.5rem;
+}
+.analysis-tags{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.65rem}
+.atag{border-radius:20px;padding:.18rem .65rem;font-size:.68rem;font-weight:500}
+.atag-gold{background:var(--gold-dim);border:1px solid var(--gold-b);color:var(--gold)}
+.atag-gray{background:var(--bg3);border:1px solid var(--bdr);color:var(--muted)}
+.analysis-summary{font-size:.78rem;color:var(--text);line-height:1.75}
+
+/* 5개 이미지 그리드 */
+.img-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:1.5rem}
+.img-grid-top{grid-column:1/-1}  /* 1위: 전체 폭 */
+
+.hcard{background:var(--bg2);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;position:relative}
+.hcard.rank1{border-color:var(--gold-b);box-shadow:0 0 32px rgba(201,168,108,.08)}
+.hcard.rank2{border-color:rgba(162,162,168,.4)}
+.hcard.rank3{border-color:rgba(160,120,72,.4)}
+
+.hcard-img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.hcard.rank1 .hcard-img{aspect-ratio:16/9}
+
+.hcard-badge{
+  position:absolute;top:.5rem;left:.5rem;
+  font-size:.6rem;font-weight:600;padding:.2rem .55rem;border-radius:20px;letter-spacing:.04em
+}
+.badge-1{background:var(--gold);color:#0a0a0a}
+.badge-2{background:#a2a2aa;color:#0a0a0a}
+.badge-3{background:#a07848;color:#fff}
+.badge-45{background:var(--bg3);border:1px solid var(--bdr);color:var(--muted)}
+
+.hcard-body{padding:.75rem .85rem .85rem}
+.hcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.3rem}
+.hcard-name{font-size:.9rem;font-weight:500}
+.hcard-score{font-size:.72rem;color:var(--gold);font-weight:500;white-space:nowrap;margin-left:.5rem}
+.hcard-desc{font-size:.68rem;color:var(--muted);margin-bottom:.5rem}
+.hcard-reason{font-size:.73rem;color:var(--muted);line-height:1.6;margin-bottom:.55rem}
+.sbar{height:2px;background:var(--bg4);border-radius:2px;margin-bottom:.55rem}
+.sbar-fill{height:100%;background:var(--gold);border-radius:2px}
+.hcard-dl{
+  background:none;border:1px solid var(--bdr);border-radius:6px;padding:.28rem .7rem;
+  font-size:.68rem;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;width:100%
+}
+.hcard-dl:hover{border-color:var(--gold-b);color:var(--gold)}
+
+/* 비용 요약 */
+.cost-box{background:var(--bg3);border:1px solid var(--bdr);border-radius:9px;padding:.8rem 1rem;margin-top:.75rem}
+.cost-line{display:flex;justify-content:space-between;padding:.18rem 0;font-size:.74rem;color:var(--muted)}
+.cost-line.tot{border-top:1px solid var(--bdr);margin-top:.3rem;padding-top:.4rem;font-weight:500;color:var(--text)}
+.cost-line span:last-child{color:var(--gold)}
+
+/* 공유 버튼 */
+.share-row{display:flex;gap:.5rem;margin-top:1rem}
+.share-row .btn{margin-top:0;flex:1}
+
+/* KEY HINT */
+.key-hint{font-size:.68rem;color:var(--muted);text-align:center;margin-top:.6rem;line-height:1.5}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+
+/* NO-IMG placeholder */
+.no-img{aspect-ratio:1;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.72rem;color:var(--muted)}
+.hcard.rank1 .no-img{aspect-ratio:16/9}
+</style>
+</head>
+<body>
+
+<!-- CONFIRM MODAL -->
+<div class="overlay" id="modal">
+  <div class="mbox">
+    <div class="mtitle">시작할까요?</div>
+    <div class="mamt">~$0.21</div>
+    <div class="mamt-sub">Gemini 이미지 5장 × $0.039 &nbsp;+&nbsp; Claude Vision $0.01</div>
+    <div class="mprivacy">
+      📷 사진은 Anthropic(얼굴 분석)과 Google Gemini(헤어 합성) 서버를 거칩니다.<br>
+      이 앱 자체에는 사진이 저장되지 않으며, 전송 즉시 메모리에서 삭제됩니다.
+    </div>
+    <div class="mbtns">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-gold" onclick="confirmRun()">시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- ① SETUP -->
+<div id="s-setup" class="screen active">
+  <div class="logo">HAIRFIT</div>
+  <div class="sub">AI Hair Stylist</div>
+  <div class="fw">
+    <div class="fl">
+      <span class="fl-label">Anthropic API Key</span>
+      <a class="fl-link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">발급받기 →</a>
+    </div>
+    <input id="ant-key" class="fi" type="password" placeholder="sk-ant-api03-..."
+      autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')document.getElementById('rep-tok').focus()">
+  </div>
+  <div class="fw">
+    <div class="fl">
+      <span class="fl-label">Gemini API Key</span>
+      <a class="fl-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">발급받기 →</a>
+    </div>
+    <input id="rep-tok" class="fi" type="password" placeholder="AIza..."
+      autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')doSetup()">
+  </div>
+  <div class="key-hint">🔒 키는 이 탭 메모리에만 저장됩니다. Gemini API는 Google AI Studio에서 무료 발급.</div>
+  <button class="btn btn-gold" onclick="doSetup()">시작하기</button>
+  <div id="err-setup" class="notice n-err"></div>
+</div>
+
+<!-- ② UPLOAD -->
+<div id="s-upload" class="screen">
+  <div class="logo">HAIRFIT</div>
+  <div class="sub">셀카를 업로드해주세요</div>
+  <div class="gtog">
+    <button id="g-male" class="gbtn on" onclick="setGender('male')">✂ 남성</button>
+    <button id="g-female" class="gbtn" onclick="setGender('female')">✿ 여성</button>
+  </div>
+  <div class="drop" id="dropzone"
+    ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+    <input type="file" id="file-in" accept="image/jpeg,image/png,image/webp" onchange="onFile(event)">
+    <img id="preview" alt="미리보기">
+    <div class="drop-ph" id="ph">
+      <div class="drop-ico">📸</div>
+      <div class="drop-hint">사진을 끌어다 놓거나 클릭해서 선택</div>
+      <div class="drop-sub">정면 셀카 권장 · JPG/PNG/WEBP · 최대 15MB</div>
+    </div>
+  </div>
+  <div class="cost-row">
+    <span>이번 실행 예상 비용</span><span>~$0.21</span>
+  </div>
+  <button id="btn-go" class="btn btn-gold" onclick="askConfirm()" disabled>AI 헤어 분석 시작</button>
+  <div style="text-align:center;margin-top:.75rem">
+    <button onclick="goTo('s-setup')" style="background:none;border:none;font-size:.72rem;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif">← API 키 변경</button>
+  </div>
+  <div id="err-upload" class="notice n-err"></div>
+</div>
+
+<!-- ③ LOADING -->
+<div id="s-load" class="screen">
+  <div class="load-header">
+    <div class="load-title">헤어 스타일 합성 중</div>
+    <div class="load-est">약 1~3분 소요 · 탭을 닫지 마세요</div>
+  </div>
+  <div class="pbar-wrap"><div class="pbar-fill" id="pbar"></div></div>
+  <div class="steps">
+    <div class="step" id="st1">
+      <div class="dot"></div>
+      <div><div class="step-t">얼굴 분석</div><div class="step-s">Claude Vision · 얼굴형 파악 및 스타일 선정</div></div>
+    </div>
+    <div class="step" id="st2">
+      <div class="dot"></div>
+      <div><div class="step-t">스타일 선정 완료</div><div class="step-s">이성 인기 순위 계산</div></div>
+    </div>
+    <div class="step" id="st3">
+      <div class="dot"></div>
+      <div><div class="step-t" id="st3-t">이미지 합성 대기 중</div><div class="step-s">Gemini 2.5 Flash Image (나노바나나) · 헤어 합성</div></div>
+    </div>
+  </div>
+  <div class="thumbs">
+    <div class="tw"><div class="thumb spin" id="th0"><img id="ti0" alt=""></div><div class="tlbl" id="tl0">—</div></div>
+    <div class="tw"><div class="thumb spin" id="th1"><img id="ti1" alt=""></div><div class="tlbl" id="tl1">—</div></div>
+    <div class="tw"><div class="thumb spin" id="th2"><img id="ti2" alt=""></div><div class="tlbl" id="tl2">—</div></div>
+    <div class="tw"><div class="thumb spin" id="th3"><img id="ti3" alt=""></div><div class="tlbl" id="tl3">—</div></div>
+    <div class="tw"><div class="thumb spin" id="th4"><img id="ti4" alt=""></div><div class="tlbl" id="tl4">—</div></div>
+  </div>
+  <div class="notice n-warn" style="margin-top:1rem;font-size:.7rem">
+    ⚠ 합성 중 탭을 닫으면 Gemini API 비용이 발생할 수 있습니다.
+  </div>
+  <button class="btn btn-danger" id="btn-abort" onclick="abortFlow()">중단하기</button>
+  <button class="btn btn-outline" id="btn-back-err" onclick="resetApp()" style="display:none">← 처음으로 돌아가기</button>
+  <div id="err-load" class="notice n-err"></div>
+</div>
+
+<!-- ④ RESULTS -->
+<div id="s-results" class="screen">
+  <div class="logo">HAIRFIT</div>
+  <div class="sub" id="res-sub">AI 헤어 추천 결과</div>
+
+  <!-- 얼굴 분석 카드 -->
+  <div class="analysis-card" id="analysis-card"></div>
+
+  <!-- 5개 합성 이미지 + 설명 -->
+  <div class="img-grid" id="img-grid"></div>
+
+  <!-- 비용 요약 -->
+  <div class="cost-box" id="run-cost"></div>
+
+  <div class="notice n-blue" style="margin-top:.75rem;font-size:.7rem">
+    📌 결과 이미지는 브라우저 메모리에 저장됩니다. 페이지를 닫기 전에 이미지를 저장하세요.
+  </div>
+
+  <div class="share-row">
+    <button class="btn btn-gold" onclick="resetApp()">새 사진으로 다시 하기</button>
+  </div>
+  <div style="text-align:center;margin-top:.65rem">
+    <button onclick="goTo('s-setup')" style="background:none;border:none;font-size:.72rem;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif">← API 키 변경</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+const S={key:'',tok:'',gender:'male',img:'',analysis:null,results:[],running:false,aborted:false};
+let abortCtrl=null;
+const COST={claude:0.012,gemini:0.039,session:0,runs:0,
+  addRun(n){const c=this.claude+this.gemini*n;this.session+=c;this.runs++;return c;}};
+
+// ── SECURITY ──
+function esc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function safeUrl(u){
+  if(!u) return '';
+  if(u.startsWith('data:image/')) return u; // Gemini base64 응답
+  try{const p=new URL(u);return p.protocol==='https:'?u:'';}catch{return '';}
+}
+function validateKeys(k,t){const e=[];if(!k.startsWith('sk-ant-'))e.push('Anthropic 키 형식 오류');if(!t.startsWith('AIza'))e.push('Gemini API 키 형식 오류 (AIza 로 시작해야 함)');return e;}
+
+// ── UI ──
+function goTo(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+function showErr(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
+function hideErr(id){document.getElementById(id).style.display='none';}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function pct(v){document.getElementById('pbar').style.width=v+'%';}
+function step(n,s){document.getElementById('st'+n).className='step'+(s?' '+s:'');}
+
+// ── SETUP ──
+function doSetup(){
+  hideErr('err-setup');
+  const key=document.getElementById('ant-key').value.trim();
+  const tok=document.getElementById('rep-tok').value.trim();
+  if(!key||!tok){showErr('err-setup','두 항목 모두 입력해주세요.');return;}
+  const errs=validateKeys(key,tok);
+  if(errs.length){
+    document.getElementById('ant-key').classList.toggle('invalid',!key.startsWith('sk-ant-'));
+    document.getElementById('rep-tok').classList.toggle('invalid',!tok.startsWith('AIza'));
+    showErr('err-setup',errs.join(' · '));return;
+  }
+  S.key=key;S.tok=tok;
+  document.getElementById('ant-key').value='';
+  document.getElementById('rep-tok').value='';
+  goTo('s-upload');
+}
+
+// ── GENDER ──
+function setGender(g){S.gender=g;document.getElementById('g-male').className='gbtn'+(g==='male'?' on':'');document.getElementById('g-female').className='gbtn'+(g==='female'?' on':'');}
+
+// ── FILE ──
+function onDrag(e,over){e.preventDefault();document.getElementById('dropzone').classList.toggle('drag',over);}
+function onDrop(e){e.preventDefault();onDrag(e,false);const f=e.dataTransfer.files[0];if(f)loadFile(f);}
+function onFile(e){const f=e.target.files[0];if(f)loadFile(f);}
+async function loadFile(f){
+  hideErr('err-upload');
+  if(!['image/jpeg','image/png','image/webp'].includes(f.type)){showErr('err-upload','JPG, PNG, WEBP 파일만 지원됩니다.');return;}
+  if(f.size>15*1024*1024){showErr('err-upload','파일 크기 초과 (최대 15MB).');return;}
+  const uri=await resize(f,768);S.img=uri;
+  const p=document.getElementById('preview');p.src=uri;p.style.display='block';
+  document.getElementById('ph').style.display='none';
+  document.getElementById('btn-go').disabled=false;
+}
+function resize(file,maxPx){
+  return new Promise(res=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',.85));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);showErr('err-upload','이미지를 읽을 수 없습니다.');};
+    img.src=url;
+  });
+}
+
+// ── MODAL ──
+function askConfirm(){if(!S.running&&S.img)document.getElementById('modal').classList.add('open');}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function confirmRun(){closeModal();startFlow();}
+
+// ── ABORT ──
+function abortFlow(){
+  S.aborted=true;if(abortCtrl){try{abortCtrl.abort();}catch{}}
+  const b=document.getElementById('btn-abort');b.disabled=true;b.textContent='중단 중...';
+}
+window.addEventListener('beforeunload',e=>{if(S.running){e.preventDefault();e.returnValue='';}});
+
+// ── CLAUDE API ──
+async function callClaude(){
+  const g=S.gender==='male'?'남성':'여성';
+  const yr=new Date().getFullYear();
+  const prompt=
+(()=>{
+    const styleList = S.gender==='male'
+      ? `MALE HAIRSTYLES - use EXACTLY these Korean names:
+1. 울프컷 | image: wolf cut curtain bangs layered
+2. 투블럭 | image: two block undercut shaved sides
+3. 내추럴펌 | image: natural perm soft S-wave
+4. 아이비리그컷 | image: ivy league neat side part
+5. 히피펌 | image: hippie perm loose beach waves`
+      : `FEMALE HAIRSTYLES - use EXACTLY these Korean names:
+1. 포니테일 | image: high ponytail sleek pulled back
+2. 히피펌 | image: hippie perm romantic beach waves long
+3. 단발컷 | image: jaw length bob sleek clean feminine
+4. 시스루뱅 | image: see-through bangs straight long hair
+5. 레이어드컷 | image: layered haircut voluminous long layers`;
+    return `You are a professional hair stylist. Analyze the face in this ${g} photo.
+
+Rank the following 5 ${S.gender==='male'?'MALE':'FEMALE'} hairstyles by suitability for this person's face shape and head shape, and attractiveness to the opposite sex.
+
+${styleList}
+
+RULES:
+1. Return ONLY a valid JSON object. No code blocks, no extra text.
+2. Straight ASCII double quotes only.
+3. Include all 5 styles ranked 1-5.
+4. image_prompt: copy the English part after the | symbol exactly as-is.
+
+{"face_analysis":{"face_shape":"얼굴형","head_shape":"두상 형태","features":"이목구비 특징","style_summary":"헤어 추천 방향 2~3문장"},"selected_styles":[{"name":"스타일명","rank":1,"desc":"한 줄 설명","attraction_score":92,"reason":"어울리는 이유 2~3문장","image_prompt":"english hairstyle only"}]}`;
+  })()
+
+  abortCtrl=new AbortController();
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',signal:abortCtrl.signal,
+    headers:{'Content-Type':'application/json','x-api-key':S.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2500,messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:S.img.split(',')[1]}},
+      {type:'text',text:prompt}
+    ]}]})
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error('Claude 오류: '+(e.error?.type||r.status));}
+  const d=await r.json();
+  let rawTxt='';
+  try{
+    rawTxt=d.content[0].text||'';
+    // 1차: 전체 매칭
+    let m=rawTxt.match(/\{[\s\S]*\}/);
+    if(!m)throw new Error('no_json');
+    let jsonStr=m[0];
+    // 2차: 유니코드 따옴표 → ASCII 교체
+    jsonStr=jsonStr.replace(/[\u201c\u201d\u201e]/g,'"').replace(/[\u2018\u2019]/g,"'");
+    return JSON.parse(jsonStr);
+  }catch(e){
+    const preview=rawTxt.slice(0,120).replace(/\n/g,' ');
+    throw new Error('Claude 응답 파싱 실패: '+e.message+' | 응답: '+preview);
+  }
+}
+
+// ── GEMINI 이미지 생성 ──
+async function genHair(style){
+  // Gemini 2.5 Flash Image (나노바나나) — 브라우저 직접 호출
+  // Google API는 CORS 허용 → 서버 프록시 불필요
+  const g = S.gender === 'male' ? 'man' : 'woman';
+  const prompt = 'Edit this photo: change only the hair of the ' + g + ' to ' + style.p + '. The face, eyes, nose, mouth, skin tone, facial expression, body, clothing, and background must remain pixel-perfect identical to the original. Only the hair region changes.';
+
+  const model = 'gemini-2.5-flash-image';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + S.tok;
+
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { inline_data: { mime_type: 'image/jpeg', data: S.img.split(',')[1] } },
+          { text: prompt }
+        ]
+      }],
+      generationConfig: {
+        responseModalities: ['IMAGE', 'TEXT']
+      }
+    })
+  });
+
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error('Gemini ' + r.status + ': ' + (e.error?.message || JSON.stringify(e).slice(0,80)));
+  }
+
+  const data = await r.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const imgPart = parts.find(p => p.inline_data?.mime_type?.startsWith('image/'));
+
+  if (!imgPart) {
+    const reason = data.candidates?.[0]?.finishReason || 'unknown';
+    const txt = parts.find(p => p.text)?.text?.slice(0,120) || '';
+    const blocked = data.promptFeedback?.blockReason || '';
+    throw new Error('이미지없음 reason=' + reason + ' block=' + blocked + ' | ' + txt);
+  }
+
+  const mime = imgPart.inline_data.mime_type;
+  return 'data:' + mime + ';base64,' + imgPart.inline_data.data;
+}
+
+
+
+// ── MAIN FLOW ──
+async function startFlow(){
+  if(S.running)return;
+  S.running=true;S.aborted=false;
+  goTo('s-load');hideErr('err-load');
+  document.getElementById('btn-abort').disabled=false;
+  document.getElementById('btn-abort').textContent='중단하기';
+  document.getElementById('btn-back-err').style.display='none';
+  for(let i=0;i<5;i++){
+    document.getElementById('th'+i).className='thumb spin';
+    document.getElementById('ti'+i).src='';
+    document.getElementById('tl'+i).textContent='—';
+  }
+  step(1,'');step(2,'');step(3,'');pct(0);
+  let successCount=0;
+  try{
+    step(1,'on');pct(5);
+    const analysis=await callClaude();
+    S.analysis=analysis;
+    step(1,'ok');step(2,'on');pct(15);
+    await sleep(250);
+
+    const selected=(analysis.selected_styles||[])
+      .map((a,i)=>({
+        id:'s'+i,name:a.name||'스타일'+(i+1),desc:a.desc||'',
+        rank:a.rank||(i+1),reason:a.reason||'',score:a.attraction_score||70,
+        p:a.image_prompt||a.replicate_prompt||a.name+' hairstyle'
+      }))
+      .filter(a=>a.name).slice(0,5);
+
+    step(2,'ok');step(3,'on');pct(20);
+    S.results=[];
+
+    const maxItems=Math.min(selected.length,5);
+    for(let i=0;i<maxItems;i++){
+      if(S.aborted)break;
+      const s=selected[i];
+      document.getElementById('st3-t').textContent=`이미지 합성 (${i+1}/5)`;
+      document.getElementById('tl'+i).textContent=s.name;
+      try{
+        const url=await genHair(s);
+        const safe=safeUrl(url);
+        if(!safe)throw new Error('URL 오류');
+        S.results.push({...s,url:safe});
+        successCount++;
+        document.getElementById('ti'+i).src=safe;
+        document.getElementById('th'+i).className='thumb done';
+      }catch(imgErr){
+        if(S.aborted)break;
+        document.getElementById('th'+i).className='thumb fail';
+        document.getElementById('tl'+i).textContent='오류';
+        // 에러 내용을 화면에 표시 (디버깅용)
+        document.getElementById('st3-s').textContent='오류: '+imgErr.message.slice(0,80);
+        S.results.push({...s,url:'',failed:true});
+      }
+      pct(20+(i+1)*16);
+    }
+
+    S.img=''; // 개인정보 보호 — 원본 즉시 삭제
+    step(3,'ok');pct(100);await sleep(400);
+
+    if(successCount===0&&!S.aborted)throw new Error('모든 이미지 합성에 실패했습니다. Gemini API 키와 크레딧을 확인하세요.');
+    const runCost=COST.addRun(successCount);
+    renderResults(runCost,successCount);
+    goTo('s-results');
+  }catch(e){
+    S.img='';
+    showErr('err-load',e.name==='AbortError'||S.aborted?'중단되었습니다.':e.message);
+    document.getElementById('btn-back-err').style.display='block';
+  }finally{S.running=false;}
+}
+
+// ── RENDER RESULTS ──
+function renderResults(runCost,successCount){
+  const fa=S.analysis.face_analysis;
+
+  // 얼굴 분석 카드
+  document.getElementById('res-sub').textContent='AI 헤어 추천 결과';
+  document.getElementById('analysis-card').innerHTML=`
+    <div class="analysis-tags">
+      <span class="atag atag-gold">얼굴형: ${esc(fa.face_shape)}</span>
+      ${fa.head_shape?`<span class="atag atag-gray">두상: ${esc(fa.head_shape)}</span>`:''}
+      ${fa.features?`<span class="atag atag-gray">${esc(fa.features)}</span>`:''}
+    </div>
+    ${fa.style_summary?`<div class="analysis-summary">${esc(fa.style_summary)}</div>`:''}`;
+
+  // 이미지 그리드
+  const sorted=[...S.results].sort((a,b)=>a.rank-b.rank);
+  let html='<div class="img-grid">';
+
+  sorted.forEach((r,i)=>{
+    const url=safeUrl(r.url);
+    const score=Math.min(100,Math.max(0,parseInt(r.score)||70));
+    const rankClass=r.rank===1?'rank1':r.rank===2?'rank2':r.rank===3?'rank3':'';
+    const badgeClass=r.rank===1?'badge-1':r.rank===2?'badge-2':r.rank===3?'badge-3':'badge-45';
+    const badgeTxt=r.rank===1?'🥇 1위':r.rank===2?'🥈 2위':r.rank===3?'🥉 3위':`${r.rank}위`;
+    const isTop=r.rank===1;
+
+    html+=`<div class="${isTop?'img-grid-top':''}">
+      <div class="hcard ${rankClass}">
+        ${url
+          ?`<img class="hcard-img" src="${url}" alt="${esc(r.name)}" loading="lazy">`
+          :`<div class="no-img">생성 실패</div>`}
+        <div class="hcard-badge ${badgeClass}">${badgeTxt}</div>
+        <div class="hcard-body">
+          <div class="hcard-top">
+            <div class="hcard-name">${esc(r.name)}</div>
+            <div class="hcard-score">매력지수 ${score}점</div>
+          </div>
+          <div class="hcard-desc">${esc(r.desc)}</div>
+          ${r.reason?`<div class="hcard-reason">${esc(r.reason)}</div>`:''}
+          <div class="sbar"><div class="sbar-fill" style="width:${score}%"></div></div>
+          ${url?`<button class="hcard-dl" onclick="dlImg('${url}','${esc(r.name)}')">⬇ 이미지 저장</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  html+='</div>';
+  document.getElementById('img-grid').innerHTML=html;
+
+  // 비용 요약
+  document.getElementById('run-cost').innerHTML=
+    `<div style="font-size:.6rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.4rem">이번 실행 청구 내역</div>`+
+    `<div class="cost-line"><span>Claude Vision (분석)</span><span>~$0.01</span></div>`+
+    `<div class="cost-line"><span>Gemini 이미지 생성 × ${successCount}장</span><span>~$${(COST.gemini*successCount).toFixed(2)}</span></div>`+
+    `<div class="cost-line tot"><span>이번 실행 합계</span><span>~$${runCost.toFixed(2)}</span></div>`+
+    (COST.runs>1?`<div class="cost-line" style="opacity:.6"><span>세션 누적 (${COST.runs}회)</span><span>~$${COST.session.toFixed(2)}</span></div>`:'');
+}
+
+// ── DOWNLOAD ──
+async function dlImg(url,name){
+  try{
+    const a=document.createElement('a');
+    if(url.startsWith('data:')){
+      // Gemini base64 data URI — 직접 다운로드
+      a.href=url;
+    } else {
+      const r=await fetch(url);const b=await r.blob();
+      a.href=URL.createObjectURL(b);
+      setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    }
+    a.download=`hairfit_${name}.jpg`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  }catch{window.open(url,'_blank','noopener,noreferrer');}
+}
+
+// ── RESET ──
+function resetApp(){
+  S.img='';S.analysis=null;S.results=[];
+  document.getElementById('preview').style.display='none';
+  document.getElementById('ph').style.display='block';
+  document.getElementById('btn-go').disabled=true;
+  document.getElementById('file-in').value='';
+  hideErr('err-upload');pct(0);step(1,'');step(2,'');step(3,'');
+  goTo('s-upload');
+}
+</script>
+</body>
+</html>
