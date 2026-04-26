@@ -505,15 +505,17 @@ async function genHair(style){
         + model + ':generateContent';
 
       const reqBody = {
+        // 앱과 동일한 편집 모드 활성화
+        system_instruction: {
+          parts: [{ text: 'You are an AI photo editor. When given an image and styling instructions, edit the image as requested and always return the edited image as your response.' }]
+        },
         contents: [{
           parts: [
-            // 공식 문서 순서: 이미지 먼저
             { inline_data: { mime_type: 'image/jpeg', data: S.img.split(',')[1] } },
             { text: prompt }
           ]
         }],
         generationConfig: {
-          // SDK 예시와 동일한 순서
           responseModalities: ['TEXT', 'IMAGE']
         },
         safetySettings: [
