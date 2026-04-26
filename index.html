@@ -356,7 +356,7 @@ function validateKeys(k,t){const e=[];if(!k.startsWith('sk-ant-'))e.push('Anthro
 
 // ── UI ──
 function goTo(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
-function showErr(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
+function showErr(id,msg){const e=document.getElementById(id);if(!e)return;e.textContent=msg;e.style.display='block';}
 function hideErr(id){document.getElementById(id).style.display='none';}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function pct(v){document.getElementById('pbar').style.width=v+'%';}
@@ -491,13 +491,16 @@ async function genHair(style){
   const g = S.gender === 'male' ? 'man' : 'woman';
   const prompt = 'Edit this photo: change only the hair of the ' + g + ' to ' + style.p + '. The face, eyes, nose, mouth, skin tone, facial expression, body, clothing, and background must remain pixel-perfect identical to the original. Only the hair region changes.';
 
-  const model = 'gemini-2.5-flash-image';
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + S.tok;
-
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
+  // gemini-2.5-flash-image 시도, 실패 시 gemini-2.0-flash-exp 폴백
+  const models = ['gemini-2.5-flash-image', 'gemini-2.0-flash-exp'];
+  let lastErr = '';
+  for (const model of models) {
+    try {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + S.tok;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
       contents: [{
         parts: [
           { inline_data: { mime_type: 'image/jpeg', data: S.img.split(',')[1] } },
@@ -510,24 +513,28 @@ async function genHair(style){
     })
   });
 
-  if (!r.ok) {
-    const e = await r.json().catch(() => ({}));
-    throw new Error('Gemini ' + r.status + ': ' + (e.error?.message || JSON.stringify(e).slice(0,80)));
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        lastErr = 'Gemini[' + model + '] ' + r.status + ': ' + (e.error?.message || JSON.stringify(e).slice(0,80));
+        continue; // 다음 모델 시도
+      }
+      const data = await r.json();
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      const imgPart = parts.find(p => p.inline_data?.mime_type?.startsWith('image/'));
+      if (!imgPart) {
+        const reason = data.candidates?.[0]?.finishReason || 'unknown';
+        const txt = parts.find(p => p.text)?.text?.slice(0,80) || '';
+        const blocked = data.promptFeedback?.blockReason || '';
+        lastErr = '[' + model + '] 이미지없음 reason=' + reason + ' block=' + blocked + ' | ' + txt;
+        continue; // 다음 모델 시도
+      }
+      const mime = imgPart.inline_data.mime_type;
+      return 'data:' + mime + ';base64,' + imgPart.inline_data.data;
+    } catch(fetchErr) {
+      lastErr = '[' + model + '] ' + fetchErr.message;
+    }
   }
-
-  const data = await r.json();
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  const imgPart = parts.find(p => p.inline_data?.mime_type?.startsWith('image/'));
-
-  if (!imgPart) {
-    const reason = data.candidates?.[0]?.finishReason || 'unknown';
-    const txt = parts.find(p => p.text)?.text?.slice(0,120) || '';
-    const blocked = data.promptFeedback?.blockReason || '';
-    throw new Error('이미지없음 reason=' + reason + ' block=' + blocked + ' | ' + txt);
-  }
-
-  const mime = imgPart.inline_data.mime_type;
-  return 'data:' + mime + ';base64,' + imgPart.inline_data.data;
+  throw new Error(lastErr || 'Gemini 모든 모델 실패');
 }
 
 
@@ -541,8 +548,8 @@ async function startFlow(){
   document.getElementById('btn-abort').textContent='중단하기';
   document.getElementById('btn-back-err').style.display='none';
   for(let i=0;i<5;i++){
-    document.getElementById('th'+i).className='thumb spin';
-    document.getElementById('ti'+i).src='';
+    const thInit=document.getElementById('th'+i);if(thInit)thInit.className='thumb spin';
+    const tiInit=document.getElementById('ti'+i);if(tiInit)tiInit.src='';
     const tl=document.getElementById('tl'+i); if(tl) tl.textContent='—';
   }
   step(1,'');step(2,'');step(3,'');pct(0);
@@ -577,11 +584,11 @@ async function startFlow(){
         if(!safe)throw new Error('URL 오류');
         S.results.push({...s,url:safe});
         successCount++;
-        document.getElementById('ti'+i).src=safe;
-        document.getElementById('th'+i).className='thumb done';
+        const tiEl=document.getElementById('ti'+i);if(tiEl)tiEl.src=safe;
+        const thEl=document.getElementById('th'+i);if(thEl)thEl.className='thumb done';
       }catch(imgErr){
         if(S.aborted)break;
-        document.getElementById('th'+i).className='thumb fail';
+        const thFail=document.getElementById('th'+i);if(thFail)thFail.className='thumb fail';
         const tlErrEl=document.getElementById('tl'+i); if(tlErrEl) tlErrEl.textContent='오류';
         // 에러 내용을 화면에 표시 (디버깅용)
         const st3s=document.getElementById('st3-s'); if(st3s) st3s.textContent='오류: '+imgErr.message.slice(0,80);
