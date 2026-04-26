@@ -486,32 +486,35 @@ RULES:
 
 // ── GEMINI 이미지 생성 ──
 async function genHair(style){
-  // Gemini image editing — 헤어스타일만 변경
-  // 프롬프트 전략: 헤어 스타일 묘사만, 신체 부위 언급 금지
-  // "hairstyle only" + "rest unchanged" 패턴이 안전 필터 통과율 높음
-  const prompt =
-    'Hairstyle only change: ' + style.p + '. ' +
-    'Only modify the hair. Do not change the background, clothing, or any other part of the image. ' +
-    'Output the edited image.';
+  // Google 공식 문서 기준 구조:
+  // 1. 이미지 먼저, 텍스트 나중 (공식 예시 순서)
+  // 2. responseModalities: ['TEXT','IMAGE'] (SDK 기준)
+  // 3. 프롬프트: "hairstyle" 중심, 사람/얼굴 언급 없이
+  const prompt = 'Apply this hairstyle: ' + style.p + '. Only the hair changes.';
 
-  // 모델 우선순위: 2.0-flash-exp(안정) → 2.5-flash-image(최신)
-  const models = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+  const models = [
+    'gemini-2.0-flash-preview-image-generation',
+    'gemini-2.5-flash-image',
+    'gemini-3.1-flash-image-preview'
+  ];
   let lastErr = '';
 
   for (const model of models) {
     try {
       const url = 'https://generativelanguage.googleapis.com/v1beta/models/'
-        + model + ':generateContent?key=' + S.tok;
+        + model + ':generateContent';
 
       const reqBody = {
         contents: [{
           parts: [
+            // 공식 문서 순서: 이미지 먼저
             { inline_data: { mime_type: 'image/jpeg', data: S.img.split(',')[1] } },
             { text: prompt }
           ]
         }],
         generationConfig: {
-          responseModalities: ['IMAGE', 'TEXT']
+          // SDK 예시와 동일한 순서
+          responseModalities: ['TEXT', 'IMAGE']
         },
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_ONLY_HIGH' },
@@ -523,13 +526,16 @@ async function genHair(style){
 
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': S.tok
+        },
         body: JSON.stringify(reqBody)
       });
 
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
-        lastErr = '[' + model + '] HTTP ' + r.status + ': ' + (e.error?.message || '').slice(0, 80);
+        lastErr = '[' + model + '] HTTP ' + r.status + ': ' + (e.error?.message || '').slice(0, 100);
         continue;
       }
 
@@ -538,24 +544,25 @@ async function genHair(style){
       const imgPart = parts.find(p => p.inline_data?.mime_type?.startsWith('image/'));
 
       if (!imgPart) {
-        const reason   = data.candidates?.[0]?.finishReason || 'unknown';
-        const blocked  = data.promptFeedback?.blockReason   || '';
-        const textHint = (parts.find(p => p.text)?.text || '').slice(0, 80);
+        const reason  = data.candidates?.[0]?.finishReason || 'unknown';
+        const blocked = data.promptFeedback?.blockReason || '';
+        const txt     = (parts.find(p => p.text)?.text || '').slice(0, 100);
         lastErr = '[' + model + '] reason=' + reason
           + (blocked ? ' block=' + blocked : '')
-          + (textHint ? ' | ' + textHint : '');
+          + (txt ? ' | ' + txt : '');
         continue;
       }
 
       return 'data:' + imgPart.inline_data.mime_type + ';base64,' + imgPart.inline_data.data;
 
-    } catch (fetchErr) {
-      lastErr = '[' + model + '] ' + fetchErr.message;
+    } catch (e) {
+      lastErr = '[' + model + '] ' + e.message;
     }
   }
 
   throw new Error(lastErr || 'Gemini 모든 모델 실패');
 }
+
 
 
 
