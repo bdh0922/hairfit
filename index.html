@@ -488,8 +488,7 @@ RULES:
 async function genHair(style){
   // Gemini 2.5 Flash Image (나노바나나) — 브라우저 직접 호출
   // Google API는 CORS 허용 → 서버 프록시 불필요
-  const g = S.gender === 'male' ? 'man' : 'woman';
-  const prompt = 'Edit this photo: change only the hair of the ' + g + ' to ' + style.p + '. The face, eyes, nose, mouth, skin tone, facial expression, body, clothing, and background must remain pixel-perfect identical to the original. Only the hair region changes.';
+  const prompt = 'Apply ' + style.p + ' hairstyle to the person in this image. Keep everything exactly the same except the hairstyle.';
 
   // gemini-2.5-flash-image 시도, 실패 시 gemini-2.0-flash-exp 폴백
   const models = ['gemini-2.5-flash-image', 'gemini-2.0-flash-exp'];
